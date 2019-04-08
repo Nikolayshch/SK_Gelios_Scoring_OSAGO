@@ -1,4 +1,4 @@
-#ver. model 0.1
+#ver. model 0.2
 from flask import Flask, request, jsonify
 from flask_restful import reqparse, abort, Api, Resource
 import json
