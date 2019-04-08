@@ -25,7 +25,7 @@ password = 'v0Gs#C5TYBM?'
 cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
 cursor = cnxn.cursor()
 #h2o.init(nthreads = 6)  # Start an H2O cluster with nthreads = num cores on your machine
-#
+
 #model = h2o.load_model("D:\\OsagoProject\\Models-h2o\\GLM_model_python_1551464873895_38")
 
 def get_input():
