@@ -1,0 +1,64 @@
+
+
+
+
+
+
+
+
+            # логируем данные в ms-sql
+            cursor.execute("INSERT INTO FS_Scoring_log(Premium,	InsSum,	PolicyId,	\
+                                                                  InsurerClientType,	InsurerBirthDate,	InsurerDocumentType,	\
+                                                                  InsurerGender,	InsurerTitle,	InsurerPhone,	DriverMinAge,	\
+                                                                  SellerIKP,	AgentIKP,	VIN,	EnginePower,	IssueYear,	\
+                                                                  TSCategory,	RegNumber,	BodyNumber,	CoefKM,	CoefKP,	IsTaxi,	\
+                                                                  CoefKO,	CoefKBM,	CoefKVC,	CoefKT,	BaseRate,	\
+                                                                  CoefKN,	CoefKPR,	SeatsNumberTo16,	MaxWeightTo16,	\
+                                                                  CoefKS,	IsForeignCountry,	OwnerKLADRCode,	FIASGroup,	\
+                                                                  InsuranceTerm,	IsProlongation,	SavingHour,	DateStartAndSavingDateDiff,	\
+                                                                  IsElectronic,	DriverMinExperience, datetime_txt) \
+                                                                  VALUES(?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	\
+                                                                  ?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?,	?, ?) ",
+                           (Premium,
+                            InsSum,
+                            PolicyId,
+                            InsurerClientType,
+                            InsurerBirthDate,
+                            InsurerDocumentType,
+                            InsurerGender,
+                            InsurerTitle,
+                            InsurerPhone,
+                            DriverMinAge,
+                            SellerIKP,
+                            AgentIKP,
+                            VIN,
+                            EnginePower,
+                            IssueYear,
+                            TSCategory,
+                            RegNumber,
+                            BodyNumber,
+                            CoefKM,
+                            CoefKP,
+                            IsTaxi,
+                            CoefKO,
+                            CoefKBM,
+                            CoefKVC,
+                            CoefKT,
+                            BaseRate,
+                            CoefKN,
+                            CoefKPR,
+                            SeatsNumberTo16,
+                            MaxWeightTo16,
+                            CoefKS,
+                            IsForeignCountry,
+                            OwnerKLADRCode,
+                            FIASGroup,
+                            InsuranceTerm,
+                            IsProlongation,
+                            SavingHour,
+                            DateStartAndSavingDateDiff,
+                            IsElectronic,
+                            DriverMinExperience,
+                            datetime_txt
+                            ))
+            cnxn.commit()
