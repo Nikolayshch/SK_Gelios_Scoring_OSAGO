@@ -332,7 +332,7 @@ if __name__ == '__main__':
     try:
         port = int(sys.argv[1]) # This is for a command-line input
     except:
-        port = 2402 # If you don't provide any port the port will be set to 12345
+        port = 5977#2402 # If you don't provide any port the port will be set to 12345
 
     '''
     # keep for sklearn models
