@@ -16,7 +16,6 @@ now = datetime.datetime.now()
 app = Flask(__name__)
 api = Api(app)
 
-
 # опробуем подключение к рабочему столу
 
 server = 'SR-DEV-SQL02\SR_DEV_SQL02'
@@ -25,6 +24,7 @@ username = 'shikhaliev'
 password = 'v0Gs#C5TYBM?'
 cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
 cursor = cnxn.cursor()
+
 #h2o.init(nthreads = 6)  # Start an H2O cluster with nthreads = num cores on your machine
 
 #model = h2o.load_model("D:\\OsagoProject\\Models-h2o\\GLM_model_python_1551464873895_38")
@@ -173,6 +173,7 @@ def predict():
 
             return jsonify({'trace': traceback.format_exc()})
     else:
+
         print ('Train the model first')
         return ('No model here to use')
 
@@ -181,10 +182,9 @@ def predict():
 @app.route('/save_quote', methods=['POST'])
 def save_quote():
         try:
+
             json_ = json.dumps(request.json)
             #print(json_)
-
-
 
             now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
             with open('D:\\OsagoQuotes\\'+now+'-OsagoQuote.json', 'w') as outfile:
