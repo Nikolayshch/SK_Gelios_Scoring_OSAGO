@@ -9,6 +9,7 @@ import pandas as pd
 import datetime
 import pyodbc
 import datetime
+#from waitress import serve
 
 now = datetime.datetime.now()
 
@@ -206,11 +207,14 @@ def save_quote():
 @app.route('/save_quote_db', methods=['POST'])
 def save_quote_db():
         try:
-            json_input = request.json
 
-            json_str = json.dumps(json_input)
+            json_input = request.json
+            json_str   = json.dumps(json_input)
+
             #json_dict_str=json.load(json_input)
+
             json_ = json_input
+
             print(json_input)
 
             Premium = json_input["Premium"]
@@ -254,10 +258,7 @@ def save_quote_db():
             IsElectronic = json_input["IsElectronic"]
             DriverMinExperience = json_input["DriverMinExperience"]
 
-
-
-
-
+            '''
             print(Premium)
             print(InsSum)
             print(PolicyId)
@@ -298,7 +299,7 @@ def save_quote_db():
             print(DateStartAndSavingDateDiff)
             print(IsElectronic)
             print(DriverMinExperience)
-
+            '''
             # print(json_)
 
             # json_dict = json.loads(json_dict_str)
@@ -306,23 +307,26 @@ def save_quote_db():
             # print(json_dict_str)
             # print(json_["Premium"])
             # print(json_["InsSum"])
+
             now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
             datetime_txt = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
-            with open('D:\\OsagoQuotes\\db\\' + now + '-OsagoQuote.json', 'w') as outfile:
+
+            with open('D:\\OsagoQuotes\\db_log_port_5978\\' + now + '-OsagoQuote.json', 'w') as outfile:
                 json.dump(json_, outfile)
+
             outfile.close()
-
-
-
 
             return json_str
 
         except:
+
             now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+
             with open('D:\\OsagoQuotes\\db\\'+now+'-Except.json', 'w') as outfile:
                 json.dump(json_, outfile)
 
             outfile.close()
+
             return jsonify({'trace': traceback.format_exc()})
 
 
@@ -332,7 +336,7 @@ if __name__ == '__main__':
     try:
         port = int(sys.argv[1]) # This is for a command-line input
     except:
-        port = 5977#2402 # If you don't provide any port the port will be set to 12345
+        port = 5978 #2402 # If you don't provide any port the port will be set to 12345
 
     '''
     # keep for sklearn models
@@ -341,8 +345,11 @@ if __name__ == '__main__':
     model_columns = joblib.load("Models\\model_columns.pkl") # Load "model_columns.pkl"
     print ('Model columns loaded')
     '''
-    app.run(host='172.31.16.122', port=port, debug=True)
+    #serve(app, host='172.31.16.122', port=port)
 
+    app.run(host='172.31.16.122', port=port, debug=False)
+
+#'172.31.16.122'
 
 '''
 #-------------------------------------------------------
