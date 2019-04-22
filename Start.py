@@ -163,6 +163,41 @@ def Power_Transform(Power):
     Power = int(Power/10)
     return Power
 
+#19.04.2019 Истрелов А.А. ++
+#добавление типа филиала, создание справочника номеров типов филиала + мэппинг
+def TypeFilial(data_Risk_Osago):
+
+    # Создаем словарь типов филиала
+
+    dict_TypeFilial_Int = {
+        None: 5, 'Е-Гарантия': 1, 'Единый агент РСА': 2, 'Е-ОСАГО': 3, 'ККК': 4, 'Москва': 5, 'Регионы': 6,
+        'Токсичные': 7}
+
+    # Мапируем данные на словарь типов филиалов TypeFilial_Int
+    data_Risk_Osago['TypeFilial_Int'] = data_Risk_Osago['ТипФилиала'].map(dict_TypeFilial_Int)
+
+    # Создаем справочник типов филиалов TypeFilial - spr_TypeFilial
+    spr_TypeFilial = data_Risk_Osago.groupby(['TypeFilial_Int']).sum()[['GPW_RSBU', 'ClaimCountPol_DB', 'Count']]
+
+    # Добавляем частоту в справочник типов филиалов TypeFilial
+    spr_TypeFilial['Reg_freq'] = spr_TypeFilial['ClaimCountPol_DB'] / spr_TypeFilial['Count']
+
+    # Создаем номера для словаря типов филиалов TypeFilial
+    keys_TypeFilial = []
+    values_TypeFilial = []
+
+    for i in enumerate(spr_TypeFilial.sort_values('Reg_freq', ascending=False).index.values):
+        keys_TypeFilial.append(i[1])
+        values_TypeFilial.append(float(i[0]))
+
+    # Создаем словарь типов филиалов TypeFilial
+    dict_TypeFilial = dict(zip(keys_TypeFilial, values_TypeFilial))
+
+    # Мапируем данные на словарь типов филиалов TypeFilial
+    data_Risk_Osago['TypeFilial_Num'] = data_Risk_Osago['TypeFilial_Int'].map(dict_TypeFilial)
+
+    return data_Risk_Osago
+
 '''
 проверяем роуты
 '''
