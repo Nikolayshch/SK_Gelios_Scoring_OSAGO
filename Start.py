@@ -39,7 +39,7 @@ cursor = cnxn.cursor()
 #gamma_fit   = h2o.load_model("D:\\OsagoProject\\Model\\GLM_model_python_gamma") #"D:\\OsagoProject\\Models-h2o\\GLM_model_python_1551464873895_38")
 #poisson_fit = h2o.load_model("D:\\OsagoProject\\Model\\GLM_model_python_poisson")
 
-print(type(gamma_fit))
+#print(type(gamma_fit))
 
 def get_input():
 
