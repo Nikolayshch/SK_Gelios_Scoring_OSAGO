@@ -254,14 +254,14 @@ def save_quote_db():
                 itemsKod = avtoKod['fines']['items'] # type = list
 
                 for itemsValue in itemsKod:
-                    #itemsValue тип = dict
-                    for key in itemsValue:
+                    for key in itemsValue: #itemsValue тип = dict
                         if key == 'article':
-                            print(itemsValue[key]['code'])
                             if itemsValue[key]['code'] == '12.9Ч.2':
                                 fineKod += 1
 
             print(fineKod)
+
+            json_.append({'fine' : fineKod})
 
             print(' ')
             print('<************************** ' + str(nowDate) + ' ********************************************>')
