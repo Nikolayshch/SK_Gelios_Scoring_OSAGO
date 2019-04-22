@@ -246,6 +246,10 @@ def save_quote_db():
 
             json_ = json_input
 
+            dataFrameJson = pd.DataFrame(json_input)
+
+            print(dataFrameJson.head())
+
             print(' ')
             print('<************************** ' + str(nowDate) + ' ********************************************>')
             print(json_input)
