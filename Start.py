@@ -242,21 +242,26 @@ def save_quote_db():
             json_input = request.json
             json_str   = json.dumps(json_input)
 
-            #json_dict_str=json.load(json_input)
-
             json_ = json_input
-
-            #dataFrameJson = pd.DataFrame(json_input['AvtoKodJSON'])
 
             avtoKod = json_input['AvtoKodJSON']
 
-            if avtoKod != []:
-                print('AVTOKOD')
-                print(avtoKod)
+            fineKod = 0
 
-            #dataFrameJson = pd.read_json(orient=json_input)
+            if type(avtoKod) == dict:
 
-            #print(dataFrameJson.head())
+                isTaxi   = avtoKod['taxi']['used_in_taxi']
+                itemsKod = avtoKod['fines']['items'] # type = list
+
+                for itemsValue in itemsKod:
+                    #itemsValue тип = dict
+                    for key in itemsValue:
+                        if key == 'article':
+                            print(itemsValue[key]['code'])
+                            if itemsValue[key]['code'] == '12.9Ч.2':
+                                fineKod += 1
+
+            print(fineKod)
 
             print(' ')
             print('<************************** ' + str(nowDate) + ' ********************************************>')
