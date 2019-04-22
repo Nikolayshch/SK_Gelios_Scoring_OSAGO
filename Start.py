@@ -261,12 +261,14 @@ def save_quote_db():
 
             print(fineKod)
 
-            json_.append({'fine' : fineKod})
-
             print(' ')
             print('<************************** ' + str(nowDate) + ' ********************************************>')
             print(json_input)
             print('<**********************************************************************************************>')
+
+            json_.append({'fine': fineKod})
+
+            print('a')
 
             Premium = json_input["Premium"]
             InsSum = json_input["InsSum"]
@@ -359,10 +361,9 @@ def save_quote_db():
             # print(json_["Premium"])
             # print(json_["InsSum"])
 
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
             datetime_txt = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
 
-            with open('D:\\OsagoQuotes\\db_log_port_5978\\' + now + '-OsagoQuote.json', 'w') as outfile:
+            with open('D:\\OsagoQuotes\\db_log_port_5978\\' + nowDate + '-OsagoQuote.json', 'w') as outfile:
                 json.dump(json_, outfile)
 
             outfile.close()
