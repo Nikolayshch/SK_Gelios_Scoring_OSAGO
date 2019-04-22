@@ -1,4 +1,5 @@
 #ver. model 0.24
+
 from flask import Flask, request, jsonify
 from flask_restful import reqparse, abort, Api, Resource
 import json
@@ -6,9 +7,10 @@ import h2o
 import sys
 import traceback
 import pandas as pd
-import datetime
 import pyodbc
 import datetime
+import LogFile as log
+
 #from waitress import serve
 
 now = datetime.datetime.now()
@@ -18,11 +20,18 @@ api = Api(app)
 
 # опробуем подключение к рабочему столу
 
-server = 'SR-DEV-SQL02\SR_DEV_SQL02'
-database = 'petrova-servsql'
-username = 'shikhaliev'
-password = 'v0Gs#C5TYBM?'
-cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+server = log.server
+database = log.database
+username = log.username
+password = log.password
+
+print('Connect...')
+print('SERVER = ' + server)
+print('DATABASE = ' + database)
+print('UID = ' + username)
+print(' ')
+
+cnxn   = pyodbc.connect('DRIVER={SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
 cursor = cnxn.cursor()
 
 #h2o.init(nthreads = 6)  # Start an H2O cluster with nthreads = num cores on your machine
@@ -30,6 +39,7 @@ cursor = cnxn.cursor()
 #model = h2o.load_model("D:\\OsagoProject\\Models-h2o\\GLM_model_python_1551464873895_38")
 
 def get_input():
+
     input={
               'DriverMinAge': 42,
               'DriverMinExperience': 15,
@@ -53,34 +63,42 @@ def get_input():
               'Reg_Doc_Kl_Num': 1,
               'CoefKBM_2': 0.5625,
               'Count': 1
-
     }
+
     return  json.dumps(input)
 
 def get_answer():
-    answer={
+
+    answer = {
         'score':0.0283197967289844
     }
+
     return  json.dumps(answer)
 
-
 def transform(input_data):
-    model_data=input_data
+
+    model_data = input_data
     return model_data
 
 
 def score(model_data):
 
-    new_data= json.loads(model_data)
-    h2oFrame = h2o.H2OFrame()
+    new_data  = json.loads(model_data)
+    h2oFrame  = h2o.H2OFrame()
     new_frame = h2oFrame.from_python(new_data)
+
     print(new_frame)
+
     prediction = model.predict(new_frame)
+
     print(prediction)
-    result=prediction.as_data_frame()['predict'][0]
+
+    result = prediction.as_data_frame()['predict'][0]
+
     answer = {
-        'score':result
+        'score': result
     }
+
     return json.dumps(answer)
 
 def YearReleaseCar(CarYear):
@@ -95,46 +113,52 @@ def YearReleaseCar(CarYear):
 
     numYears = now.year - Year
 
-    if numYears == 0:
-        numYears = 1
+    numYears += 1
 
     return numYears
 
 def polinomizer(data, f1, n=2):
-    for i in range (2,n+1):
+
+    for i in range (2, n+1):
         data[f1 + '_' + str(n)] = data[f1] ** i
+
     return(data)
 
 def DriverAgeExp(DriverAge,DriverExp):
-    if DriverAge<18:
-        DriverAge=18
-    elif DriverAge>80:
-        DriverAge=80
-    if DriverExp<0:
-        DriverExp=0
-    elif DriverExp>30:
-        DriverExp=30
-    if DriverAge-DriverExp<18:
+
+    if DriverAge < 18:
+        DriverAge = 18
+    elif DriverAge > 80:
+        DriverAge = 80
+    if DriverExp < 0:
+        DriverExp = 0
+    elif DriverExp > 30:
+        DriverExp = 30
+    if DriverAge-DriverExp < 18:
         DriverAge = None
         DriverExp = None
-    return DriverAge,DriverExp
+
+    return DriverAge, DriverExp
 
 def DriverAge(DriverAge):
-    if DriverAge<18:
-        DriverAge=18
-    elif DriverAge>80:
-        DriverAge=80
+
+    if DriverAge < 18:
+        DriverAge = 18
+    elif DriverAge > 80:
+        DriverAge = 80
     return DriverAge
 
 def DriverExp(DriverExp):
-    if DriverExp<0:
-        DriverExp=0
-    elif DriverExp>30:
-        DriverExp=30
+
+    if DriverExp < 0:
+        DriverExp = 0
+    elif DriverExp > 30:
+        DriverExp = 30
     return DriverExp
 
 def Power_Transform(Power):
-    Power=int(Power/10)
+
+    Power = int(Power/10)
     return Power
 
 '''
@@ -145,23 +169,26 @@ def Power_Transform(Power):
 
 @app.route("/get_input/")
 def get_input_r():
-    ret=get_input()
-    return ret
+
+    return get_input()
 
 @app.route("/get_answer/")
 def get_answer_r():
-    ret=get_answer()
-    return ret
+
+    return get_answer()
 
 @app.route("/predict_test/")
 def predict_test():
-    ret=score(get_input())
-    return ret
+
+    return score(get_input())
 
 @app.route('/predict', methods=['POST'])
 def predict():
+
     if 1==1:
+
         try:
+
             json_ = json.dumps(request.json)
             print(json_)
 
@@ -170,23 +197,21 @@ def predict():
             return prediction
 
         except:
-
             return jsonify({'trace': traceback.format_exc()})
     else:
 
         print ('Train the model first')
         return ('No model here to use')
 
-
-
 @app.route('/save_quote', methods=['POST'])
 def save_quote():
+
         try:
 
             json_ = json.dumps(request.json)
-            #print(json_)
 
             now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+
             with open('D:\\OsagoQuotes\\'+now+'-OsagoQuote.json', 'w') as outfile:
                 json.dump(json_, outfile)
 
@@ -197,16 +222,20 @@ def save_quote():
         except:
 
             now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+
             with open('D:\\OsagoQuotes\\'+now+'-Except.json', 'w') as outfile:
                 json.dump(json_, outfile)
 
             outfile.close()
-            return jsonify({'trace': traceback.format_exc()})
 
+            return jsonify({'trace': traceback.format_exc()})
 
 @app.route('/save_quote_db', methods=['POST'])
 def save_quote_db():
+
         try:
+
+            nowDate = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
 
             json_input = request.json
             json_str   = json.dumps(json_input)
@@ -215,7 +244,10 @@ def save_quote_db():
 
             json_ = json_input
 
+            print(' ')
+            print('<************************** ' + str(nowDate) + ' ********************************************>')
             print(json_input)
+            print('<**********************************************************************************************>')
 
             Premium = json_input["Premium"]
             InsSum = json_input["InsSum"]
@@ -329,10 +361,8 @@ def save_quote_db():
 
             return jsonify({'trace': traceback.format_exc()})
 
-
-
-
 if __name__ == '__main__':
+
     try:
         port = int(sys.argv[1]) # This is for a command-line input
     except:
