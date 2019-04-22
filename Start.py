@@ -246,7 +246,7 @@ def save_quote_db():
 
             json_ = json_input
 
-            dataFrameJson = pd.DataFrame(json_input)
+            dataFrameJson = pd.DataFrame(json_input['AvtoKodJSON'])
 
             print(dataFrameJson.head())
 
