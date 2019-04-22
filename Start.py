@@ -34,9 +34,12 @@ print(' ')
 cnxn   = pyodbc.connect('DRIVER={SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
 cursor = cnxn.cursor()
 
-#h2o.init(nthreads = 6)  # Start an H2O cluster with nthreads = num cores on your machine
+h2o.init(nthreads = 6)  # Start an H2O cluster with nthreads = num cores on your machine
 
-#model = h2o.load_model("D:\\OsagoProject\\Models-h2o\\GLM_model_python_1551464873895_38")
+gamma_fit   = h2o.load_model("D:\\OsagoProject\\Model\\GLM_model_python_gamma") #"D:\\OsagoProject\\Models-h2o\\GLM_model_python_1551464873895_38")
+poisson_fit = h2o.load_model("D:\\OsagoProject\\Model\\GLM_model_python_poisson")
+
+print(type(gamma_fit))
 
 def get_input():
 
@@ -79,7 +82,6 @@ def transform(input_data):
 
     model_data = input_data
     return model_data
-
 
 def score(model_data):
 
