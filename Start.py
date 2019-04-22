@@ -246,11 +246,17 @@ def save_quote_db():
 
             json_ = json_input
 
-            dataFrameJson = pd.DataFrame(json_input['AvtoKodJSON'])
+            #dataFrameJson = pd.DataFrame(json_input['AvtoKodJSON'])
+
+            avtoKod = json_input['AvtoKodJSON']
+
+            if avtoKod != []:
+                print('AVTOKOD')
+                print(avtoKod)
 
             #dataFrameJson = pd.read_json(orient=json_input)
 
-            print(dataFrameJson.head())
+            #print(dataFrameJson.head())
 
             print(' ')
             print('<************************** ' + str(nowDate) + ' ********************************************>')
