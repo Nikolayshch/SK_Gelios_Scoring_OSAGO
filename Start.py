@@ -266,7 +266,7 @@ def save_quote_db():
             print(json_input)
             print('<**********************************************************************************************>')
 
-            json_.append({'fine': str(fineKod)})
+            json_.append({'fine': str( 1 if fineKod == 0 else fineKod )})
 
             print('a')
 
