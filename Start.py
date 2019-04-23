@@ -279,8 +279,6 @@ def save_quote_db():
 
             json_ = json_input
 
-            print(type(json_))
-
             avtoKod = json_input['AvtoKodJSON']
 
             fineKod = 0
