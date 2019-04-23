@@ -317,8 +317,7 @@ def save_quote_db():
                         if key == 'amount' and payAllFine:
                             allAmountFine += itemsValue[key]['total']
                             continue
-
-
+            print('a')
 
             #entry = {'FineAvtoKod': fineKod}
             json_.update({'FineAvtoKod': fineKod})
