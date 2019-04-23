@@ -279,6 +279,8 @@ def save_quote_db():
 
             json_ = json_input
 
+            print(type(json_))
+
             avtoKod = json_input['AvtoKodJSON']
 
             fineKod = 0
@@ -289,26 +291,18 @@ def save_quote_db():
                 itemsKod = avtoKod['fines']['items'] # type = list
 
                 for itemsValue in itemsKod:
-                    for key in itemsValue: #itemsValue тип = dict
+                    for key in itemsValue:
                         if key == 'article':
                             if itemsValue[key]['code'] == '12.9Ч.2':
                                 fineKod += 1
 
-            print(fineKod)
+            entry = {'FineAvtoKod': 1 if fineKod == 0 else fineKod}
+            json_.update(entry)
 
             print(' ')
             print('<************************** ' + str(nowDate) + ' ********************************************>')
-            #print(json_input)
-            print('<**********************************************************************************************>')
-
-            entry = {}
-            entry['FineAvtoKod'] = 1 if fineKod == 0 else fineKod
-
-            json.dump(entry, json_)
-
-            #json_.append({'FineAvtoKod': str( 1 if fineKod == 0 else fineKod )})
-
             print(json_)
+            print('<**********************************************************************************************>')
 
             Premium = json_input["Premium"]
             InsSum = json_input["InsSum"]
