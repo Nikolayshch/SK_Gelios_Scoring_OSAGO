@@ -298,12 +298,17 @@ def save_quote_db():
 
             print(' ')
             print('<************************** ' + str(nowDate) + ' ********************************************>')
-            print(json_input)
+            #print(json_input)
             print('<**********************************************************************************************>')
 
-            json_.append({'fine': str( 1 if fineKod == 0 else fineKod )})
+            entry = {}
+            entry['FineAvtoKod'] = 1 if fineKod == 0 else fineKod
 
-            print('a')
+            json.dump(entry, json_)
+
+            #json_.append({'FineAvtoKod': str( 1 if fineKod == 0 else fineKod )})
+
+            print(json_)
 
             Premium = json_input["Premium"]
             InsSum = json_input["InsSum"]
