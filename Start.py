@@ -302,17 +302,23 @@ def save_quote_db():
                         if key == 'article':
 
                             if itemsValue[key]['code'] == '12.9Ч.2':
+
                                 fineKod += 1
                                 payFine = True
+
                             else:
+
                                 allFine += 1
                                 payAllFine = True
 
                             continue
 
                         else:
+
                             allFine += 1
                             payAllFine = True
+
+                            continue
 
                         if key == 'amount' and payFine:
                             amountFineKod += itemsValue[key]['total']
