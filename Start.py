@@ -281,7 +281,11 @@ def save_quote_db():
 
             avtoKod = json_input['AvtoKodJSON']
 
-            fineKod = 0
+            fineKod = 0 # Количество штрафов при превышении скорости
+            amountFineKod = 0 # Сумма штрафов при превышении скорости
+
+            allFine = 0 # Все остальные штрафы
+            allAmountFine = 0 # Сумма по всем остальным штрафам
 
             if type(avtoKod) == dict:
 
@@ -289,13 +293,38 @@ def save_quote_db():
                 itemsKod = avtoKod['fines']['items'] # type = list
 
                 for itemsValue in itemsKod:
+
+                    payFine = False
+                    payAllFine = False
+
                     for key in itemsValue:
+
                         if key == 'article':
+
                             if itemsValue[key]['code'] == '12.9Ч.2':
                                 fineKod += 1
+                                payFine = True
+                            else:
+                                allFine += 1
+                                payAllFine = True
 
-            entry = {'FineAvtoKod': fineKod}
-            json_.update(entry)
+                            continue
+
+                        if key == 'amount' and payFine:
+                            amountFineKod += itemsValue[key]['total']
+                            continue
+
+                        if key == 'amount' and payAllFine:
+                            allAmountFine += itemsValue[key]['total']
+                            continue
+
+
+
+            #entry = {'FineAvtoKod': fineKod}
+            json_.update({'FineAvtoKod': fineKod})
+            json_.update({'amountFineKod': amountFineKod})
+            json_.update({'allFine': allFine})
+            json_.update({'allAmountFine': allAmountFine})
 
             print(' ')
             print('<************************** ' + str(nowDate) + ' ********************************************>')
