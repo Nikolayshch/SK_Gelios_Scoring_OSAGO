@@ -294,7 +294,7 @@ def save_quote_db():
                             if itemsValue[key]['code'] == '12.9Ч.2':
                                 fineKod += 1
 
-            entry = {'FineAvtoKod': 1 if fineKod == 0 else fineKod}
+            entry = {'FineAvtoKod': fineKod}
             json_.update(entry)
 
             print(' ')
