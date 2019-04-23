@@ -310,6 +310,10 @@ def save_quote_db():
 
                             continue
 
+                        else:
+                            allFine += 1
+                            payAllFine = True
+
                         if key == 'amount' and payFine:
                             amountFineKod += itemsValue[key]['total']
                             continue
@@ -317,9 +321,7 @@ def save_quote_db():
                         if key == 'amount' and payAllFine:
                             allAmountFine += itemsValue[key]['total']
                             continue
-            print('a')
 
-            #entry = {'FineAvtoKod': fineKod}
             json_.update({'FineAvtoKod': fineKod})
             json_.update({'amountFineKod': amountFineKod})
             json_.update({'allFine': allFine})
