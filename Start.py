@@ -303,30 +303,25 @@ def save_quote_db():
 
                             if itemsValue[key]['code'] == '12.9Ч.2':
 
-                                fineKod += 1
                                 payFine = True
 
                             else:
 
-                                allFine += 1
                                 payAllFine = True
-
-                            continue
 
                         else:
 
-                            allFine += 1
                             payAllFine = True
 
-                            continue
-
                         if key == 'amount' and payFine:
+                            fineKod += 1
                             amountFineKod += itemsValue[key]['total']
-                            continue
+                            break
 
                         if key == 'amount' and payAllFine:
+                            allFine += 1
                             allAmountFine += itemsValue[key]['total']
-                            continue
+                            break
 
             json_.update({'FineAvtoKod': fineKod})
             json_.update({'amountFineKod': amountFineKod})
