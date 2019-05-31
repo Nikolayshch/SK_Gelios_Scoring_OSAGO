@@ -10,6 +10,7 @@ import pandas as pd
 import pyodbc
 import datetime
 import LogFile as log
+import pprint
 
 now = datetime.datetime.now()
 
@@ -36,8 +37,6 @@ h2o.init(nthreads = 6)  # Start an H2O cluster with nthreads = num cores on your
 
 gamma_fit   = h2o.load_model(log.path_Model_Gamma)
 poisson_fit = h2o.load_model(log.path_Model_Poisson)
-
-print(type(gamma_fit))
 
 def get_input():
 
@@ -219,6 +218,265 @@ def TypeFilial(data_Risk_Osago):
 
     return data_Risk_Osago
 
+@app.route('/save_quote_db', methods=['POST'])
+def save_quote_db():
+
+        try:
+
+            nowDate = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+
+            json_input = request.json
+            json_str   = json.dumps(json_input)
+
+            json_ = json_input
+
+            avtoKod = json_input['AvtoKodJSON']
+
+            Count_Fine_Speed  = 0 # Количество штрафов при превышении скорости
+            Group_Amout_Speed = 0 # Сумма штрафов при превышении скорости
+            allFine           = 0 # Все остальные штрафы
+            allAmountFine     = 0 # Сумма по всем остальным штрафам
+            Premium           = json_input['Premium'] # Премия
+
+            RegNumber             = json_input["RegNumber"]
+            VIN                   = json_input["VIN"]
+            InsurerClientType     = json_input["InsurerClientType"]
+            DriverMinAge          = json_input["DriverMinAge"]
+            DriverMinAge_2        = json_input["DriverMinAge"] ** 2
+            DriverMinExperience   = json_input["DriverMinExperience"]
+            DriverMinExperience_2 = json_input["DriverMinExperience"] ** 2
+            IsTaxi                = json_input["IsTaxi"]
+
+            if type(IsTaxi) != type(bool):
+                IsTaxi = False
+
+            CoefKM                = json_input["CoefKM"]
+            Coef_KP               = json_input["CoefKP"]
+            Coef_KS               = json_input["CoefKS"]
+            CoefKBM               = json_input["CoefKBM"]
+            FIASGroup_Sum_Num     = int(json_input["FIASGroup"])
+            DriverUnlimit         = json_input["DriverUnlimit"]
+            EnginePower_Autocod   = f_Power(json_input["EnginePower"])
+            VehicleAge            = f_Vehicle_Age(json_input["IssueYear"])
+            IsProlongation        = json_input["IsProlongation"]
+            InsurerGender         = json_input["InsurerGender"]
+            BKI_scoreNumber_1_Num = float(1)
+            OwnerKLADRCode_Num    = f_get_region_num(json_input["OwnerKLADRCode"])
+            FIASGroup_Num         = float(json_input["FIASGroup"])
+            TSCategory_Num        = float(json_input["TSCategory"])
+            IsMSK                 = json_input["IsMSK"]
+            IsEGARANT             = json_input["IsEGARANT"]
+            IsEOSAGO              = json_input["IsEOSAGO"]
+            PrevPolicyNumber      = json_input["PrevPolicyNumber"]
+            BKIJSON               = json_input["BKIJSON"]
+
+            if not pd.isnull(BKIJSON):
+                if "ScoreNumber" in BKIJSON:
+                    BKI_scoreNumber_1_Num = float(BKIJSON['ScoreNumber'])
+
+            if IsEGARANT:
+                TypeFilial_Num = 0
+            elif IsEOSAGO:
+                TypeFilial_Num = 1
+            elif IsMSK:
+                TypeFilial_Num = 3
+            else:
+                TypeFilial_Num = 2
+
+            if InsurerGender == 0:
+                GenderM = 0
+                GenderW = 1
+            else:
+                GenderM = 1
+                GenderW = 0
+
+            if InsurerClientType == 2:
+                GenderM = 0
+                GenderW = 0
+
+            if DriverUnlimit == True:
+                DriverUnlimitNum = float(1)
+            else:
+                DriverUnlimitNum = float(0)
+
+            if type(avtoKod) == dict:
+
+               if 'taxi' in avtoKod:
+
+                   if 'used_in_taxi' in avtoKod['taxi']:
+                        IsTaxi = avtoKod['taxi']['used_in_taxi']
+
+               if 'fines' in avtoKod:
+
+                   if 'items' in avtoKod['fines']:
+
+                       itemsKod = avtoKod['fines']['items']
+
+                       for itemsValue in itemsKod:
+
+                           payFine = False
+                           payAllFine = False
+
+                           for key in itemsValue:
+
+                               if key == 'article':
+
+                                   if itemsValue[key]['code'] == '12.9Ч.2':
+
+                                       payFine = True
+
+                                   else:
+
+                                       payAllFine = True
+
+                               else:
+
+                                   payAllFine = True
+
+                               if key == 'amount' and payFine:
+                                   Count_Fine_Speed += 1
+                                   Group_Amout_Speed += itemsValue[key]['total']
+                                   break
+
+                               if key == 'amount' and payAllFine:
+                                   allFine += 1
+                                   allAmountFine += itemsValue[key]['total']
+                                   break
+
+            Taxi = 1 if IsTaxi else 0
+
+            if not pd.isnull(PrevPolicyNumber):
+
+                OldPolicy_Num      = 0
+                OldClaimSumPol_Num = 0
+
+                TextRequest = ("""SELECT
+                                SUM(ClaimSum) AS ClaimSum,
+                                SUM(ClaimCount) AS ClaimCount
+                                FROM ClaimDate
+                                WHERE PolicyID = ?""")
+
+                try:
+
+                    query = cursor.execute(TextRequest, PrevPolicyNumber)
+                    row   = query.fetchone()
+
+                    while row:
+
+                        if not pd.isnull(row.ClaimCount):
+
+                            OldPolicy_Num      += int(row.ClaimCount)
+                            OldClaimSumPol_Num += int(row.ClaimSum)
+
+                        row = query.fetchone()
+
+                except:
+
+                    OldPolicy_Num = 0
+                    OldClaimSumPol_Num = 0
+
+
+            else:
+
+                OldPolicy_Num      = 0
+                OldClaimSumPol_Num = 0
+
+            if not IsTaxi:
+
+                df = pd.DataFrame({'InsurerClientType': [InsurerClientType],
+                               'DriverMinAge':          [DriverMinAge],
+                               'DriverMinAge_2':        [DriverMinAge_2],
+                               'DriverMinExperience':   [DriverMinExperience],
+                               'DriverMinExperience_2': [DriverMinExperience_2],
+                               'Coef_KP':               [Coef_KP],
+                               'Coef_KS':               [Coef_KS],
+                               'CoefKBM':               [CoefKBM],
+                               'FIASGroup_Sum_Num':     [FIASGroup_Sum_Num],
+                               'DriverUnlimitNum':      [DriverUnlimitNum],
+                               'EnginePower_Autocod':   [EnginePower_Autocod],
+                               'VehicleAge':            [VehicleAge],
+                               'OldPolicy_Num':         [OldPolicy_Num],
+                               'OldClaimSumPol_Num':    [OldClaimSumPol_Num],
+                               'BKI_scoreNumber_1_Num': [BKI_scoreNumber_1_Num],
+                               'OwnerKLADRCode_Num':    [OwnerKLADRCode_Num],
+                               'FIASGroup_Num':         [FIASGroup_Num],
+                               'TSCategory_Num':        [TSCategory_Num],
+                               'TypeFilial_Num':        [TypeFilial_Num],
+                               'GenderM':               [GenderM],
+                               'GenderW':               [GenderW],
+                               'Taxi':                  [Taxi]
+                               })
+
+                hf = h2o.H2OFrame(df)
+
+                print('Predict Gamma......')
+                predictGamma = gamma_fit.predict(hf)
+                ValueGamma = predictGamma.as_data_frame()['predict'][0]
+                print(ValueGamma)
+
+                print('Predict Poisson......')
+                predictPoisson = poisson_fit.predict(hf)
+                ValuePoisson = predictPoisson.as_data_frame()['predict'][0]
+                print(ValuePoisson)
+
+                MeanLoss = ValueGamma * ValuePoisson / Premium
+
+                print('MeanLoss:' + str(MeanLoss))
+
+                json_.update({'PredictGamma': ValueGamma})
+                json_.update({'PredictPoisson': ValuePoisson})
+                json_.update({'MeanLoss': MeanLoss})
+
+            json_.update({'FineAvtoKod':    Count_Fine_Speed})
+            json_.update({'amountFineKod':  Group_Amout_Speed})
+            json_.update({'allFine':        allFine})
+            json_.update({'allAmountFine':  allAmountFine})
+
+            print(' ')
+            print('<************************** ' + str(nowDate) + ' ********************************************>')
+            pprint.pprint(json_)
+            print('<**********************************************************************************************>')
+
+            with open('D:\\OsagoQuotes\\db_log_port_5978\\' + nowDate + '-OsagoQuote.json', 'w') as outfile:
+                json.dump(json_, outfile)
+
+            outfile.close()
+
+            return json_str
+
+        except:
+
+            print("ERROR")
+
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+
+            with open('D:\\OsagoQuotes\\db\\'+now+'-Except.json', 'w') as outfile:
+                json.dump(json_, outfile)
+
+            outfile.close()
+
+            return jsonify({'trace': traceback.format_exc()})
+
+if __name__ == '__main__':
+
+    try:
+        port = int(sys.argv[1]) # This is for a command-line input
+    except:
+        port = 5978 #2402 # If you don't provide any port the port will be set to 12345
+
+    '''
+    # keep for sklearn models
+    lr = joblib.load("Models\\model.pkl") # Load "model.pkl"
+    print ('Model loaded')
+    model_columns = joblib.load("Models\\model_columns.pkl") # Load "model_columns.pkl"
+    print ('Model columns loaded')
+    '''
+    #serve(app, host='172.31.16.122', port=port)
+
+    app.run(host='172.31.16.122', port=port, debug=False)
+
+#'172.31.16.122'
+
 '''
 проверяем роуты
 '''
@@ -287,230 +545,6 @@ def save_quote():
             outfile.close()
 
             return jsonify({'trace': traceback.format_exc()})
-
-@app.route('/save_quote_db', methods=['POST'])
-def save_quote_db():
-
-        try:
-
-            nowDate = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
-
-            json_input = request.json
-            json_str   = json.dumps(json_input)
-
-            json_ = json_input
-
-            avtoKod = json_input['AvtoKodJSON']
-
-            Count_Fine_Speed  = 0 # Количество штрафов при превышении скорости
-            Group_Amout_Speed = 0 # Сумма штрафов при превышении скорости
-            allFine           = 0 # Все остальные штрафы
-            allAmountFine     = 0 # Сумма по всем остальным штрафам
-            Premium           = json_input['Premium'] # Премия
-
-            RegNumber             = json_input["RegNumber"]
-            VIN                   = json_input["VIN"]
-            InsurerClientType     = json_input["InsurerClientType"]
-            DriverMinAge          = json_input["DriverMinAge"]
-            DriverMinAge_2        = json_input["DriverMinAge"] ** 2
-            DriverMinExperience   = json_input["DriverMinExperience"]
-            DriverMinExperience_2 = json_input["DriverMinExperience"] ** 2
-            IsTaxi                = json_input["IsTaxi"]
-
-            if type(IsTaxi) != type(bool):
-                IsTaxi = False
-
-            CoefKM                = json_input["CoefKM"]
-            Coef_KP               = json_input["CoefKP"]
-            Coef_KS               = json_input["CoefKS"]
-            CoefKBM               = json_input["CoefKBM"]
-            FIASGroup_Sum_Num     = int(json_input["FIASGroup"])
-            DriverUnlimit         = json_input["DriverUnlimit"]
-            EnginePower_Autocod   = f_Power(json_input["EnginePower"])
-            VehicleAge            = f_Vehicle_Age(json_input["IssueYear"])
-            IsProlongation        = json_input["IsProlongation"]
-            InsurerGender         = json_input["InsurerGender"]
-            BKI_scoreNumber_1_Num = float(1)
-            OwnerKLADRCode_Num    = f_get_region_num(json_input["OwnerKLADRCode"])
-            FIASGroup_Num         = float(json_input["FIASGroup"])
-            TSCategory_Num        = float(json_input["TSCategory"])
-
-            TypeFilial_Num = 3.0 # ПРОВЕРИТЬ
-
-            if InsurerGender == 1:
-                GenderM = 1
-                GenderW = 0
-            else:
-                GenderM = 0
-                GenderW = 0
-
-            if DriverUnlimit == True:
-                DriverUnlimitNum = float(1)
-            else:
-                DriverUnlimitNum = float(0)
-
-            if type(avtoKod) == dict:
-
-               if 'taxi' in avtoKod:
-                   if 'used_in_taxi' in avtoKod['taxi']:
-                        IsTaxi = avtoKod['taxi']['used_in_taxi']
-
-               itemsKod = avtoKod['fines']['items']
-
-               for itemsValue in itemsKod:
-
-                    payFine = False
-                    payAllFine = False
-
-                    for key in itemsValue:
-
-                        if key == 'article':
-
-                            if itemsValue[key]['code'] == '12.9Ч.2':
-
-                                payFine = True
-
-                            else:
-
-                                payAllFine = True
-
-                        else:
-
-                            payAllFine = True
-
-                        if key == 'amount' and payFine:
-                            Count_Fine_Speed += 1
-                            Group_Amout_Speed += itemsValue[key]['total']
-                            break
-
-                        if key == 'amount' and payAllFine:
-                            allFine += 1
-                            allAmountFine += itemsValue[key]['total']
-                            break
-
-            Taxi = 1 if IsTaxi else 0
-
-            if IsProlongation and (VIN != '' or RegNumber != ''):
-
-                OldPolicy_Num      = 1 # ПРОВЕРИТЬ
-                OldClaimSumPol_Num = 0
-
-                TextRequest = """SELECT 
-                                 Sum(Claim.ClaimSum) AS ClaimSum, 
-                                 Sum(Claim.ClaimCount) AS ClaimCount 
-                                 FROM [dbo].[base_autoContracts_raw] AS Answer
-                                 left join [dbo].[ClaimDate] AS Claim
-                                 ON Answer.PolicyID = Claim.PolicyID                    
-                                 WHERE
-                                 Claim.ClaimSum IS NOT NULL
-                                 AND  """
-
-                #VIN       = 'Answer.vin = ' + VIN
-                #RegNumber =
-
-                #cursor.execute(TextRequest + VIN if VIN !='' else RegNumber)
-
-                #rows = cursor.fetchall()
-
-                #for row in rows:
-                #    print(row.ClaimSum, row.ClaimCount)
-
-
-            else:
-
-                OldPolicy_Num      = 0
-                OldClaimSumPol_Num = 0
-
-            df = pd.DataFrame({'InsurerClientType':     [InsurerClientType],
-                               'DriverMinAge':          [DriverMinAge],
-                               'DriverMinAge_2':        [DriverMinAge_2],
-                               'DriverMinExperience':   [DriverMinExperience],
-                               'DriverMinExperience_2': [DriverMinExperience_2],
-                               'Coef_KP':               [Coef_KP],
-                               'Coef_KS':               [Coef_KS],
-                               'CoefKBM':               [CoefKBM],
-                               'FIASGroup_Sum_Num':     [FIASGroup_Sum_Num],
-                               'DriverUnlimitNum':      [DriverUnlimitNum],
-                               'EnginePower_Autocod':   [EnginePower_Autocod],
-                               'VehicleAge':            [VehicleAge],
-                               'OldPolicy_Num':         [OldPolicy_Num],
-                               'OldClaimSumPol_Num':    [OldClaimSumPol_Num],
-                               'BKI_scoreNumber_1_Num': [BKI_scoreNumber_1_Num],
-                               'OwnerKLADRCode_Num':    [OwnerKLADRCode_Num],
-                               'FIASGroup_Num':         [FIASGroup_Num],
-                               'TSCategory_Num':        [TSCategory_Num],
-                               'TypeFilial_Num':        [TypeFilial_Num],
-                               'GenderM':               [GenderM],
-                               'GenderW':               [GenderW],
-                               'Taxi':                  [Taxi]
-                               })
-
-            hf = h2o.H2OFrame(df)
-
-            print('Predict Gamma......')
-            predictGamma = gamma_fit.predict(hf)
-            ValueGamma = predictGamma.as_data_frame()['predict'][0]
-            print(ValueGamma)
-
-            print('Predict Poisson......')
-            predictPoisson = poisson_fit.predict(hf)
-            ValuePoisson = predictPoisson.as_data_frame()['predict'][0]
-            print(ValuePoisson)
-
-            MeanLoss = ValueGamma * ValuePoisson / Premium
-
-            print('MeanLoss:' + str(MeanLoss))
-
-            json_.update({'PredictGamma':   ValueGamma})
-            json_.update({'PredictPoisson': ValuePoisson})
-            json_.update({'MeanLoss':       MeanLoss})
-            json_.update({'FineAvtoKod':    Count_Fine_Speed})
-            json_.update({'amountFineKod':  Group_Amout_Speed})
-            json_.update({'allFine':        allFine})
-            json_.update({'allAmountFine':  allAmountFine})
-
-            print(' ')
-            print('<************************** ' + str(nowDate) + ' ********************************************>')
-            print(json_)
-            print('<**********************************************************************************************>')
-
-            with open('D:\\OsagoQuotes\\db_log_port_5978\\' + nowDate + '-OsagoQuote.json', 'w') as outfile:
-                json.dump(json_, outfile)
-
-            outfile.close()
-
-            return json_str
-
-        except:
-
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
-
-            with open('D:\\OsagoQuotes\\db\\'+now+'-Except.json', 'w') as outfile:
-                json.dump(json_, outfile)
-
-            outfile.close()
-
-            return jsonify({'trace': traceback.format_exc()})
-
-if __name__ == '__main__':
-
-    try:
-        port = int(sys.argv[1]) # This is for a command-line input
-    except:
-        port = 5978 #2402 # If you don't provide any port the port will be set to 12345
-
-    '''
-    # keep for sklearn models
-    lr = joblib.load("Models\\model.pkl") # Load "model.pkl"
-    print ('Model loaded')
-    model_columns = joblib.load("Models\\model_columns.pkl") # Load "model_columns.pkl"
-    print ('Model columns loaded')
-    '''
-    #serve(app, host='172.31.16.122', port=port)
-
-    app.run(host='172.31.16.122', port=port, debug=False)
-
-#'172.31.16.122'
 
 '''
 #-------------------------------------------------------
