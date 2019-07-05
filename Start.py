@@ -35,45 +35,14 @@ cursor = cnxn.cursor()
 
 h2o.init(nthreads = 6)  # Start an H2O cluster with nthreads = num cores on your machine
 
+print(log.path_Model_Gamma)
 gamma_fit   = h2o.load_model(log.path_Model_Gamma)
+
+print(log.path_Model_Poisson)
 poisson_fit = h2o.load_model(log.path_Model_Poisson)
 
-def get_input():
-
-    input={
-              'DriverMinAge': 42,
-              'DriverMinExperience': 15,
-              'ClaimCountPol': 0,
-              'DAgeExp': 331,
-              'DriverMinAge_2': 1764,
-              'DriverMinExperience_2': 225,
-              'RegionNum': 49,
-              'DriverUnlimit_Num': 0,
-              'EnginePower': 12,
-              'Taxi': 0,
-              'issueyear_num': 11,
-              'issueyear_num_2': 121,
-              'MM_Num': 411,
-              'Seg_Num': 14,
-              'InsurerClientType_Num': 0,
-              'CoefKBM': 0.75,
-              'TSCat_Num':9,
-              'OwnerKLADRCode_Num': 38,
-              'KL_Num': 44,
-              'Reg_Doc_Kl_Num': 1,
-              'CoefKBM_2': 0.5625,
-              'Count': 1
-    }
-
-    return  json.dumps(input)
-
-def get_answer():
-
-    answer = {
-        'score':0.0283197967289844
-    }
-
-    return  json.dumps(answer)
+printstatus = log.printstatus
+jsonaddstatus = log.jsonaddstatus
 
 def transform(input_data):
 
@@ -139,25 +108,31 @@ def DriverAgeExp(DriverAge,DriverExp):
 
     return DriverAge, DriverExp
 
-def DriverAge(DriverAge):
+def f_DriverAge(DriverAge):
 
     if DriverAge < 18:
         DriverAge = 18
     elif DriverAge > 80:
         DriverAge = 80
+    else:
+        DriverAge = DriverAge
     return DriverAge
 
-def DriverExp(DriverExp):
+def f_DriverExp(DriverExp):
 
     if DriverExp < 0:
         DriverExp = 0
     elif DriverExp > 30:
         DriverExp = 30
+    else:
+        DriverExp = DriverExp
     return DriverExp
 
 def f_Power(Power):
 
     if pd.isnull(Power):
+        Power = None
+    elif Power > 500:
         Power = None
     else:
         Power = round(Power/10, 0)
@@ -183,52 +158,116 @@ def f_get_region_num(Kladr):
         region_num = int(region_num)
     return region_num
 
-#19.04.2019 Истрелов А.А. ++
-#добавление типа филиала, создание справочника номеров типов филиала + мэппинг
-def TypeFilial(data_Risk_Osago):
+def f_BKI(Score):
+    if pd.isnull(Score):
+        Score = 20 - round(949/50, 0)
+    else:
+        Score = 20 - round(Score/50, 0)
+    return Score
 
-    # Создаем словарь типов филиала
+def map_for_dict_TypeFilial(TypeFilial_Int, TypeDict):
 
-    dict_TypeFilial_Int = {
-        None: 5, 'Е-Гарантия': 1, 'Единый агент РСА': 2, 'Е-ОСАГО': 3, 'ККК': 4, 'Москва': 5, 'Регионы': 6,
-        'Токсичные': 7}
+    if TypeDict == 'Num':
+        dictionary = {0: 0.0, 3: 1.0, 1: 2.0, 2: 3.0}
+        res = dictionary.get(TypeFilial_Int)
+        if res == None:
+            res = 3.0
 
-    # Мапируем данные на словарь типов филиалов TypeFilial_Int
-    data_Risk_Osago['TypeFilial_Int'] = data_Risk_Osago['ТипФилиала'].map(dict_TypeFilial_Int)
+    elif TypeDict == 'Sum':
+        dictionary = {0: 1.0, 1: 2.0, 2: 3.0, 3: 4.0}
+        res = dictionary.get(TypeFilial_Int)
+        if res == None:
+            res = 3.0
+    else:
+        res = TypeFilial_Int
+    return res
 
-    # Создаем справочник типов филиалов TypeFilial - spr_TypeFilial
-    spr_TypeFilial = data_Risk_Osago.groupby(['TypeFilial_Int']).sum()[['GPW_RSBU', 'ClaimCountPol_DB', 'Count']]
+def map_for_dict_FIASGroup(FIASGroup_Int, TypeDict):
+    if TypeDict == 'Num':
+        dictionary = {6: 0.0, 5: 1.0, 0: 2.0, 4: 3.0, 3: 4.0, 1: 5.0, 2: 6.0}
+        res = dictionary.get(FIASGroup_Int)
+        if res == None:
+            res = 2.0
 
-    # Добавляем частоту в справочник типов филиалов TypeFilial
-    spr_TypeFilial['Reg_freq'] = spr_TypeFilial['ClaimCountPol_DB'] / spr_TypeFilial['Count']
+    elif TypeDict == 'Sum':
+        dictionary = {5: 0.0, 0: 1.0, 2: 2.0, 4: 3.0, 3: 4.0, 1: 5.0, 6: 6.0}
+        res = dictionary.get(FIASGroup_Int)
+        if res == None:
+            res = 1.0
+    else:
+        res = FIASGroup_Int
 
-    # Создаем номера для словаря типов филиалов TypeFilial
-    keys_TypeFilial = []
-    values_TypeFilial = []
+    return res
 
-    for i in enumerate(spr_TypeFilial.sort_values('Reg_freq', ascending=False).index.values):
-        keys_TypeFilial.append(i[1])
-        values_TypeFilial.append(float(i[0]))
+def map_for_dict_OwnerKLADR(OwnerKLADR_Int, TypeDict):
+    if TypeDict == 'Num':
+        dictionary = {53: 0.0, 83: 1.0, 44: 2.0, 70: 3.0, 73: 4.0, 58: 5.0, 74: 6.0, 52: 7.0, 30: 8.0, 20: 9.0,
+                      55: 10.0, 15: 11.0, 62: 12.0, 16: 13.0, 18: 14.0, 32: 15.0, 5: 16.0, 37: 17.0, 33: 18.0,
+                      29: 19.0, 6: 20.0, 2: 21.0, 48: 22.0, 46: 23.0, 13: 24.0, 51: 25.0, 45: 26.0, 36: 27.0,
+                      43: 28.0, 71: 29.0, 78: 30.0, 89: 31.0, 63: 32.0, 7: 33.0, 57: 34.0, 77: 35.0, 34: 36.0,
+                      59: 37.0, 86: 38.0, 66: 39.0, 56: 40.0, 12: 41.0, 50: 42.0, 24: 43.0, 42: 44.0, 65: 45.0,
+                      49: 46.0, 69: 47.0, 3: 48.0, 11: 49.0, 0: 50.0, 19: 51.0,  67: 52.0, 91: 53.0, 38: 54.0,
+                      23: 55.0, 39: 56.0, 27: 57.0, 72: 58.0, 76: 59.0, 47: 60.0, 60: 61.0, 31: 62.0, 25: 63.0,
+                      22: 64.0, 54: 65.0, 41: 66.0, 61: 67.0, 87: 68.0, 68: 69.0, 79: 70.0, 40: 71.0, 28: 72.0,
+                      64: 73.0, 17: 74.0, 8: 75.0, 35: 76.0, 26: 77.0, 4: 78.0, 92: 79.0, 14: 80.0, 75: 81.0,
+                      1: 82.0, 10: 83.0, 21: 84.0, 9: 85.0, 99: 86.0}
 
-    # Создаем словарь типов филиалов TypeFilial
-    dict_TypeFilial = dict(zip(keys_TypeFilial, values_TypeFilial))
+        res = dictionary.get(OwnerKLADR_Int)
+        if res == None:
+            res = 0.0
 
-    # Мапируем данные на словарь типов филиалов TypeFilial
-    data_Risk_Osago['TypeFilial_Num'] = data_Risk_Osago['TypeFilial_Int'].map(dict_TypeFilial)
+    elif TypeDict == 'Sum':
+        dictionary = {74: 0.0, 59: 1.0, 73: 2.0, 66: 3.0, 71: 4.0, 63: 5.0, 15: 6.0, 37: 7.0, 48: 8.0, 67: 9.0,
+                    45: 10.0, 7: 11.0, 60: 12.0, 43: 13.0, 61: 14.0, 3: 15.0, 44: 16.0, 76: 17.0, 20: 18.0,
+                    23: 19.0, 16: 20.0, 51: 21.0, 41: 22.0, 13: 23.0, 28: 24.0, 72: 25.0, 53: 26.0, 52: 27.0,
+                    8: 28.0, 40: 29.0, 4: 30.0, 26: 31.0, 42: 32.0, 34: 33.0, 55: 34.0, 29: 35.0, 2: 36.0,
+                    12: 37.0, 62: 38.0, 17: 39.0, 49: 40.0, 25: 41.0, 27: 42.0, 5: 43.0, 79: 44.0, 54: 45.0,
+                    57: 46.0, 22: 47.0, 77: 48.0, 14: 49.0, 75: 50.0, 50: 51.0, 65: 52.0, 0: 53.0, 64: 54.0,
+                    70: 55.0, 38: 56.0, 30: 57.0, 24: 58.0, 19: 59.0, 69: 60.0, 78: 61.0, 86: 62.0, 87: 63.0,
+                    89: 64.0, 18: 65.0, 91: 66.0, 33: 67.0, 32: 68.0, 56: 69.0, 6: 70.0, 1: 71.0, 58: 72.0,
+                    11: 73.0, 36: 74.0, 31: 75.0, 92: 76.0, 68: 77.0, 46: 78.0, 47: 79.0, 83: 80.0, 39: 81.0,
+                    35: 82.0, 9: 83.0, 10: 84.0, 21: 85.0, 99: 86.0}
 
-    return data_Risk_Osago
+        res = dictionary.get(OwnerKLADR_Int)
+        if res == None:
+            res = 0.0
+    else:
+        res = OwnerKLADR_Int
+
+    return res
+
+def map_for_dict_TSCategory(TSCategory_Int, TypeDict):
+    if TypeDict == 'Num':
+        dictionary = {7: 0.0, 4: 1.0, 3: 2.0, 2: 3.0, 8: 4.0, 10: 5.0, 5: 6.0, 1: 7.0, 6: 8.0, 9: 9.0}
+        res = dictionary.get(TSCategory_Int)
+        if res == None:
+            res = 3.0
+
+    elif TypeDict == 'Sum':
+        dictionary = {3: 0.0, 5: 1.0, 2: 2.0, 4: 3.0, 1: 4.0, 8: 5.0, 10: 6.0, 7: 7.0, 6: 8.0, 9: 9.0}
+        res = dictionary.get(TSCategory_Int)
+        if res == None:
+            res = 2.0
+    else:
+        res = TSCategory_Int
+
+    return res
 
 @app.route('/save_quote_db', methods=['POST'])
 def save_quote_db():
 
         try:
 
-            nowDate = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+            nowDateStart = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
 
+            print(' ')
+            print('<************************** ' + str(nowDateStart) + ' ********************************************>')
             json_input = request.json
             json_str   = json.dumps(json_input)
 
             json_ = json_input
+
+            PredictSegment = ""
 
             avtoKod = json_input['AvtoKodJSON']
 
@@ -241,11 +280,12 @@ def save_quote_db():
             RegNumber             = json_input["RegNumber"]
             VIN                   = json_input["VIN"]
             InsurerClientType     = json_input["InsurerClientType"]
-            DriverMinAge          = json_input["DriverMinAge"]
-            DriverMinAge_2        = json_input["DriverMinAge"] ** 2
-            DriverMinExperience   = json_input["DriverMinExperience"]
-            DriverMinExperience_2 = json_input["DriverMinExperience"] ** 2
+            DriverMinAge          = f_DriverAge(json_input["DriverMinAge"])
+            DriverMinAge_2        = DriverMinAge ** 2
+            DriverMinExperience   = f_DriverExp(json_input["DriverMinExperience"])
+            DriverMinExperience_2 = DriverMinExperience ** 2
             IsTaxi                = json_input["IsTaxi"]
+            InsurerTitle          = json_input["InsurerTitle"]
 
             if type(IsTaxi) != type(bool):
                 IsTaxi = False
@@ -254,41 +294,80 @@ def save_quote_db():
             Coef_KP               = json_input["CoefKP"]
             Coef_KS               = json_input["CoefKS"]
             CoefKBM               = json_input["CoefKBM"]
-            FIASGroup_Sum_Num     = int(json_input["FIASGroup"])
             DriverUnlimit         = json_input["DriverUnlimit"]
             EnginePower_Autocod   = f_Power(json_input["EnginePower"])
             VehicleAge            = f_Vehicle_Age(json_input["IssueYear"])
             IsProlongation        = json_input["IsProlongation"]
             InsurerGender         = json_input["InsurerGender"]
             BKI_scoreNumber_1_Num = float(1)
-            OwnerKLADRCode_Num    = f_get_region_num(json_input["OwnerKLADRCode"])
-            FIASGroup_Num         = float(json_input["FIASGroup"])
-            TSCategory_Num        = float(json_input["TSCategory"])
+
+            OwnerKLADR_Int        = f_get_region_num(json_input["OwnerKLADRCode"])
+            FIASGroup_Int         = float(json_input["FIASGroup"])
+            TSCategory_Int        = float(json_input["TSCategory"])
+
             IsMSK                 = json_input["IsMSK"]
             IsEGARANT             = json_input["IsEGARANT"]
             IsEOSAGO              = json_input["IsEOSAGO"]
+            SellerIKP = json_input["SellerIKP"]
+
             PrevPolicyNumber      = json_input["PrevPolicyNumber"]
             BKIJSON               = json_input["BKIJSON"]
+            Commission            = json_input['Commission']
+            IsRefusal             = False # Отказ клиенту
+            MeanLoss              = 0 # Средний убыток
 
             if not pd.isnull(BKIJSON):
                 if "ScoreNumber" in BKIJSON:
-                    BKI_scoreNumber_1_Num = float(BKIJSON['ScoreNumber'])
+                    BKI_scoreNumber_1_Num = f_BKI(float(BKIJSON['ScoreNumber']))
 
             if IsEGARANT:
-                TypeFilial_Num = 0
-            elif IsEOSAGO:
-                TypeFilial_Num = 1
+                TypeFilial_Int = 0
+            #elif IsEOSAGO:     признак IsEOSAGO соответствует коду продукта, в модели нас интересует канал продаж
+            #                    - через сайт, это признак SellerIKP = 01788
+            elif SellerIKP == '01788':
+                TypeFilial_Int = 1
             elif IsMSK:
-                TypeFilial_Num = 3
+                TypeFilial_Int = 3
             else:
-                TypeFilial_Num = 2
+                TypeFilial_Int = 2
+
+            TypeFilial_Num = map_for_dict_TypeFilial(TypeFilial_Int, 'Num')
+            TypeFilial_Sum_Num = map_for_dict_TypeFilial(TypeFilial_Int, 'Sum')
+
+            OwnerKLADR_Num = map_for_dict_OwnerKLADR(OwnerKLADR_Int, 'Num')
+            OwnerKLADR_Sum_Num = map_for_dict_OwnerKLADR(OwnerKLADR_Int, 'Sum')
+
+            FIASGroup_Num = map_for_dict_FIASGroup(FIASGroup_Int, 'Num')
+            FIASGroup_Sum_Num = map_for_dict_FIASGroup(FIASGroup_Int, 'Sum')
+
+            TSCategory_Num = map_for_dict_TSCategory(TSCategory_Int, 'Num')
+            TSCategory_Sum_Num = map_for_dict_TSCategory(TSCategory_Int, 'Sum')
+
+            # 19.06.2019 Истрелов А.А. --
 
             if InsurerGender == 0:
                 GenderM = 0
                 GenderW = 1
-            else:
+            elif InsurerGender == 1:
                 GenderM = 1
                 GenderW = 0
+            else:
+                try:
+                    lenInsurerTitle = len(InsurerTitle)
+                    if InsurerTitle[lenInsurerTitle-2:].upper() == 'ИЧ' or InsurerTitle[lenInsurerTitle-4:].upper() == 'ОГЛЫ':
+                        GenderM = 1
+                        GenderW = 0
+                    elif InsurerTitle[lenInsurerTitle-2:].upper() == 'НА' or InsurerTitle[lenInsurerTitle-4:].upper() == 'КЫЗЫ':
+                        GenderM = 0
+                        GenderW = 1
+                    else:
+                        GenderM = 0
+                        GenderW = 0
+                except:
+                    GenderM = 0
+                    GenderW = 0
+
+            # 19.06.2019 Истрелов А.А. --
 
             if InsurerClientType == 2:
                 GenderM = 0
@@ -334,12 +413,12 @@ def save_quote_db():
                                    payAllFine = True
 
                                if key == 'amount' and payFine:
-                                   Count_Fine_Speed += 1
+                                   Count_Fine_Speed  += 1
                                    Group_Amout_Speed += itemsValue[key]['total']
                                    break
 
                                if key == 'amount' and payAllFine:
-                                   allFine += 1
+                                   allFine       += 1
                                    allAmountFine += itemsValue[key]['total']
                                    break
 
@@ -381,45 +460,72 @@ def save_quote_db():
                 OldPolicy_Num      = 0
                 OldClaimSumPol_Num = 0
 
-            if not IsTaxi:
+            if DriverMinAge == 0:
+                DriverUnlimit = True
+                DriverUnlimitNum = 1
+                json_.update({'DriverUnlimit': DriverUnlimit})
 
-                df = pd.DataFrame({'InsurerClientType': [InsurerClientType],
-                               'DriverMinAge':          [DriverMinAge],
-                               'DriverMinAge_2':        [DriverMinAge_2],
-                               'DriverMinExperience':   [DriverMinExperience],
-                               'DriverMinExperience_2': [DriverMinExperience_2],
-                               'Coef_KP':               [Coef_KP],
-                               'Coef_KS':               [Coef_KS],
-                               'CoefKBM':               [CoefKBM],
-                               'FIASGroup_Sum_Num':     [FIASGroup_Sum_Num],
-                               'DriverUnlimitNum':      [DriverUnlimitNum],
-                               'EnginePower_Autocod':   [EnginePower_Autocod],
-                               'VehicleAge':            [VehicleAge],
-                               'OldPolicy_Num':         [OldPolicy_Num],
-                               'OldClaimSumPol_Num':    [OldClaimSumPol_Num],
-                               'BKI_scoreNumber_1_Num': [BKI_scoreNumber_1_Num],
-                               'OwnerKLADRCode_Num':    [OwnerKLADRCode_Num],
-                               'FIASGroup_Num':         [FIASGroup_Num],
-                               'TSCategory_Num':        [TSCategory_Num],
-                               'TypeFilial_Num':        [TypeFilial_Num],
-                               'GenderM':               [GenderM],
-                               'GenderW':               [GenderW],
-                               'Taxi':                  [Taxi]
+            if not IsTaxi and not DriverUnlimit:
+
+                nowDate = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+                #print('time start predict', str(nowDate))
+                json_.update({'TimeStart': nowDateStart})
+                json_.update({'TimeStartPredict': nowDate})
+
+                df = pd.DataFrame({
+                                'InsurerClientType':     [InsurerClientType],
+                                'DriverMinAge':          [DriverMinAge],
+                                'DriverMinAge_2':        [DriverMinAge_2],
+                                'DriverMinExperience':   [DriverMinExperience],
+                                'DriverMinExperience_2': [DriverMinExperience_2],
+                                'Coef_KP':               [Coef_KP],
+                                'Coef_KS':               [Coef_KS],
+                                'CoefKBM':               [CoefKBM],
+                                'DriverUnlimitNum':      [DriverUnlimitNum],
+                                'EnginePower+Autocod':   [EnginePower_Autocod],
+                                'VehicleAge':            [VehicleAge],
+                                'OldPolicy_Num':         [OldPolicy_Num],
+                                'OldClaimSumPol_Num':    [OldClaimSumPol_Num],
+                                'BKI_scoreNumber_1_Num': [BKI_scoreNumber_1_Num],
+                                'GenderM':               [GenderM],
+                                'GenderW':               [GenderW],
+                                'Taxi':                  [Taxi],
+                                'FIASGroup_Sum_Num':     [FIASGroup_Sum_Num],
+                                'OwnerKLADR_Sum_Num':    [OwnerKLADR_Sum_Num],
+                                'TSCategory_Sum_Num':    [TSCategory_Sum_Num],
+                                'TypeFilial_Sum_Num':    [TypeFilial_Sum_Num],
+                                'Count_Fine_Speed':      [Count_Fine_Speed],
+                                'Group_Amout_Speed':     [Group_Amout_Speed],
+                                'FIASGroup_Num':         [FIASGroup_Num],
+                                'OwnerKLADR_Num':        [OwnerKLADR_Num],
+                                'TSCategory_Num':        [TSCategory_Num],
+                                'TypeFilial_Num':        [TypeFilial_Num]
                                })
 
                 hf = h2o.H2OFrame(df)
 
-                print('Predict Gamma......')
+                #print('Predict Gamma......')
                 predictGamma = gamma_fit.predict(hf)
-                ValueGamma = predictGamma.as_data_frame()['predict'][0]
-                print(ValueGamma)
+                ValueGamma   = predictGamma.as_data_frame()['predict'][0]
 
-                print('Predict Poisson......')
+                print('ValueGamma ', ValueGamma)
+
+                #print('Predict Poisson......')
+
                 predictPoisson = poisson_fit.predict(hf)
-                ValuePoisson = predictPoisson.as_data_frame()['predict'][0]
-                print(ValuePoisson)
+                ValuePoisson  = predictPoisson.as_data_frame()['predict'][0]
 
-                MeanLoss = ValueGamma * ValuePoisson / Premium
+                nowDate = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+                #print('time end predict', str(nowDate))
+                json_.update({'TimeEndPredict': nowDate})
+
+                print('ValuePoisson ', ValuePoisson)
+
+                MeanLoss = (ValueGamma * ValuePoisson + Commission) / Premium
+                MeanLoss = int(MeanLoss * 100)
+
+                if MeanLoss > 95:
+                    IsRefusal = True
 
                 print('MeanLoss:' + str(MeanLoss))
 
@@ -427,22 +533,119 @@ def save_quote_db():
                 json_.update({'PredictPoisson': ValuePoisson})
                 json_.update({'MeanLoss': MeanLoss})
 
+                if printstatus == 1:
+                    print('расчет начало')
+                    print('InsurerClientType',      InsurerClientType)
+                    print('DriverMinAge',           DriverMinAge)
+                    print('DriverMinAge_2',         DriverMinAge_2)
+                    print('DriverMinAge_2**2',      DriverMinAge ** 2)
+                    print('DriverMinExperience',    DriverMinExperience)
+                    print('DriverMinExperience_2',  DriverMinExperience_2)
+                    print('DriverMinExperience_2 ** 2',  DriverMinExperience**2)
+                    print('EnginePower+Autocod',    EnginePower_Autocod)
+                    print('Coef_KP',                Coef_KP)
+                    print('Coef_KS',                Coef_KS)
+                    print('CoefKBM',                CoefKBM)
+                    print('DriverUnlimitNum',       DriverUnlimitNum)
+                    print('EnginePower_Autocod',    EnginePower_Autocod)
+                    print('VehicleAge',             VehicleAge)
+
+                    print('OldPolicy_Num', OldPolicy_Num)
+                    print('OldClaimSumPol_Num', OldClaimSumPol_Num)
+                    print('BKI_scoreNumber_1_Num', BKI_scoreNumber_1_Num)
+                    print('Count_Fine_Speed', Count_Fine_Speed)
+                    print('Group_Amout_Speed', Group_Amout_Speed)
+
+                    print('GenderM', GenderM)
+                    print('GenderW', GenderW)
+                    print('Taxi', Taxi)
+
+                    print('FIASGroup_Num',      FIASGroup_Num)
+                    print('FIASGroup_Sum_Num',  FIASGroup_Sum_Num)
+                    print('FIASGroup_Int',      FIASGroup_Int)
+
+                    print('OwnerKLADR_Num',     OwnerKLADR_Num)
+                    print('OwnerKLADR_Sum_Num', OwnerKLADR_Sum_Num)
+                    print('OwnerKLADR_Int',     OwnerKLADR_Int)
+
+                    print('TSCategory_Num',     TSCategory_Num)
+                    print('TSCategory_Sum_Num', TSCategory_Sum_Num)
+                    print('TSCategory_Int',     TSCategory_Int)
+
+                    print('TypeFilial_Num',     TypeFilial_Num)
+                    print('TypeFilial_Sum_Num', TypeFilial_Sum_Num)
+                    print('TypeFilial_Int',     TypeFilial_Int)
+
+                    print('расчет конец')
+
+            else:
+                IsRefusal = True
+
+            if IsRefusal:
+                # 11.06.2019 Истрелов А.А. ++
+                if MeanLoss > 199:
+                    PredictSegment = "Запретительный"
+                # 11.06.2019 Истрелов А.А. --
+                else:
+                    PredictSegment = "Рисковый"
+            else:
+                PredictSegment = "Целевой-2"
+
             json_.update({'FineAvtoKod':    Count_Fine_Speed})
             json_.update({'amountFineKod':  Group_Amout_Speed})
             json_.update({'allFine':        allFine})
             json_.update({'allAmountFine':  allAmountFine})
+            json_.update({'IsRefusal':      IsRefusal})
+            json_.update({'PredictSegment': PredictSegment})
 
-            print(' ')
-            print('<************************** ' + str(nowDate) + ' ********************************************>')
-            pprint.pprint(json_)
-            print('<**********************************************************************************************>')
+            # 19.06.2019 Истрелов А.А. ++
+            json_.update({'GenderM': GenderM})
+            json_.update({'GenderW': GenderW})
+            # 19.06.2019 Истрелов А.А. --
+
+            #print(' ')
+            #print('<************************** ' + str(nowDate) + ' ********************************************>')
+            #pprint.pprint(json_)
+
+            nowDate = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+            json_.update({'TimeEnd': nowDate})
+
+            if jsonaddstatus ==1:
+                json_.update({'DriverUnlimitNum':       DriverUnlimitNum})
+                json_.update({'EnginePower_Autocod':    EnginePower_Autocod})
+                json_.update({'VehicleAge':             VehicleAge})
+                json_.update({'OldPolicy_Num':          OldPolicy_Num})
+                json_.update({'OldClaimSumPol_Num':     OldClaimSumPol_Num})
+                json_.update({'BKI_scoreNumber_1_Num':  BKI_scoreNumber_1_Num})
+                json_.update({'FIASGroup_Sum_Num':      FIASGroup_Sum_Num})
+                json_.update({'OwnerKLADR_Sum_Num':     OwnerKLADR_Sum_Num})
+                json_.update({'TSCategory_Sum_Num':     TSCategory_Sum_Num})
+                json_.update({'TypeFilial_Sum_Num':     TypeFilial_Sum_Num})
+                json_.update({'Count_Fine_Speed':       Count_Fine_Speed})
+                json_.update({'Group_Amout_Speed':      Group_Amout_Speed})
+                json_.update({'FIASGroup_Num':          FIASGroup_Num})
+                json_.update({'OwnerKLADR_Num':         OwnerKLADR_Num})
+                json_.update({'TSCategory_Num':         TSCategory_Num})
+                json_.update({'TypeFilial_Num':         TypeFilial_Num})
 
             with open('D:\\OsagoQuotes\\db_log_port_5978\\' + nowDate + '-OsagoQuote.json', 'w') as outfile:
                 json.dump(json_, outfile)
 
             outfile.close()
 
-            return json_str
+            json_segment = {'PredictSegment': PredictSegment, 'Score': MeanLoss}
+
+            pprint.pprint(json_segment)
+
+
+            nowDate = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S.%f")
+            print('Time end: ',  str(nowDate))
+
+            print('<**********************************************************************************************>')
+
+            return json.dumps(json_segment) #json_str
+
+
 
         except:
 
@@ -545,6 +748,44 @@ def save_quote():
             outfile.close()
 
             return jsonify({'trace': traceback.format_exc()})
+
+
+def get_input():
+
+    input={
+              'DriverMinAge': 42,
+              'DriverMinExperience': 15,
+              'ClaimCountPol': 0,
+              'DAgeExp': 331,
+              'DriverMinAge_2': 1764,
+              'DriverMinExperience_2': 225,
+              'RegionNum': 49,
+              'DriverUnlimit_Num': 0,
+              'EnginePower': 12,
+              'Taxi': 0,
+              'issueyear_num': 11,
+              'issueyear_num_2': 121,
+              'MM_Num': 411,
+              'Seg_Num': 14,
+              'InsurerClientType_Num': 0,
+              'CoefKBM': 0.75,
+              'TSCat_Num':9,
+              'OwnerKLADRCode_Num': 38,
+              'KL_Num': 44,
+              'Reg_Doc_Kl_Num': 1,
+              'CoefKBM_2': 0.5625,
+              'Count': 1
+    }
+
+    return  json.dumps(input)
+
+def get_answer():
+
+    answer = {
+        'score':0.0283197967289844
+    }
+
+    return  json.dumps(answer)
 
 '''
 #-------------------------------------------------------
