@@ -184,6 +184,7 @@ def map_for_dict_TypeFilial(TypeFilial_Int, TypeDict):
 
 def map_for_dict_FIASGroup(FIASGroup_Int, TypeDict):
     if TypeDict == 'Num':
+
         dictionary = {6: 0.0, 5: 1.0, 0: 2.0, 4: 3.0, 3: 4.0, 1: 5.0, 2: 6.0}
         res = dictionary.get(FIASGroup_Int)
         if res == None:
